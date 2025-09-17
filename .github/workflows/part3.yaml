@@ -25,12 +25,48 @@ jobs:
 
       - name: Test FastAPI Health Endpoint
         run: |
-          for i in {1..5}; do
-            if curl -s http://localhost:8000/health | grep -q healthy; then
-              echo "FastAPI is up!"
-              break
+          echo "Starting health check..."
+          
+          # Check if container is running
+          echo "Checking running containers:"
+          docker ps
+          
+          # Check container logs
+          echo "Container logs:"
+          docker compose -f part3/docker-compose.yml logs
+          
+          # Wait for service to be ready
+          for i in {1..30}; do
+            echo "Attempt $i/30: Checking health endpoint..."
+            
+            # Check if port is listening
+            if nc -z localhost 8000; then
+              echo "Port 8000 is open"
+              
+              # Try health check
+              HEALTH_RESPONSE=$(curl -s -w "HTTP_CODE:%{http_code}" http://localhost:8000/health || echo "CURL_FAILED")
+              echo "Health response: $HEALTH_RESPONSE"
+              
+              if echo "$HEALTH_RESPONSE" | grep -q "healthy"; then
+                echo "FastAPI is up and healthy!"
+                break
+              else
+                echo "Service responded but not healthy yet"
+              fi
+            else
+              echo "Port 8000 is not open yet"
             fi
-            sleep 1
+            
+            if [ $i -eq 30 ]; then
+              echo "Health check failed after 30 attempts"
+              echo "Final container status:"
+              docker ps -a
+              echo "Final logs:"
+              docker compose -f part3/docker-compose.yml logs
+              exit 1
+            fi
+            
+            sleep 2
           done
 
       - name: Test Prediction Endpoint
@@ -45,50 +81,6 @@ jobs:
             }')
           
           echo "Prediction response: $RESPONSE"
-
-      
-  generate-report:
-    needs: run-tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-
-      - name: Generate Report
-        run: | 
-          precision=$(jq '.precision' part3/models/best/metadata.json)
-          recall=$(jq '.recall' part3/models/best/metadata.json)
-          f1=$(jq '.f1' part3/models/best/metadata.json)
-          model_type=$(jq -r '.model_filename' part3/models/best/metadata.json | sed -E 's/model_(.*)\.joblib/\1/')
-
-          mkdir -p part3/reports
-          report_path=part3/reports/best_model_report.md
-
-          echo "# Best Model Report" > "$report_path"
-          echo "" >> "$report_path"
-          echo "## Model Info" >> "$report_path"
-          echo "" >> "$report_path"
-          echo "- **Model Type**: $model_type" >> "$report_path"
-
-          echo "- **Parameters**:" >> "$report_path"
-          jq -r '.params | to_entries[] | "  - \(.key): \(.value)"' part2/models/best/metadata.json >> "$report_path"
-          echo "" >> "$report_path"
-
-          echo "## Metrics" >> "$report_path"
-          echo "" >> "$report_path"
-          echo "| Metric    | Value |" >> "$report_path"
-          echo "|-----------|-------|" >> "$report_path"
-          echo "| Precision | $precision |" >> "$report_path"
-          echo "| Recall    | $recall |" >> "$report_path"
-          echo "| F1 Score  | $f1 |" >> "$report_path"
-          echo "" >> "$report_path"
-
-          echo "## Images" >> "$report_path"
-          echo "" >> "$report_path"
-          for img in part3/models/best/*.png; do
-            rel_path=$(realpath --relative-to=reports "$img")
-            echo "![Image]($rel_path)" >> "$report_path"
-          done
 
       - name: Commit and push changes
         env:
