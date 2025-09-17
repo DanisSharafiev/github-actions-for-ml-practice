@@ -9,10 +9,9 @@ import pandas as pd
 
 app = FastAPI()
 
-# Load model with different paths for different environments
-model_dir = os.environ.get('MODEL_DIR', '/models')  # Default to Docker path
+model_dir = os.environ.get('MODEL_DIR', '/models')
 if not os.path.exists(model_dir):
-    model_dir = '../models/best'  # Fallback to local development path
+    model_dir = '../models/best'
 
 model_path = os.path.join(model_dir, 'best_model_pipeline.joblib')
 model = joblib.load(model_path)
