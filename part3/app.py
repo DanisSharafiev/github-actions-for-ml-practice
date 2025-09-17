@@ -2,11 +2,12 @@
 
 from fastapi import FastAPI
 from pydantic import BaseModel
-import pickle
+from train import train_model
 
-# Load the trained model
-with open("model.pkl", "rb") as f:
-    model = pickle.load(f)
+model_json = train_model()
+
+model = model_json["model"]
+accuracy = model_json["accuracy"]
 
 # Define the FastAPI app
 app = FastAPI()
