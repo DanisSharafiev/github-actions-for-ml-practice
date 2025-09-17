@@ -21,7 +21,7 @@ jobs:
       - name: Docker build and Test
         run: |
           cd part3
-          docker-compose up --build -d
+          docker compose up --build -d
 
       - name: Test FastAPI Health Endpoint
         run: |
