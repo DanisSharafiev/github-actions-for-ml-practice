@@ -13,8 +13,7 @@ def predict(data):
     return response.json()
 
 def predict_batch(file):
-    # Possible error
-    response = requests.post(f"{BACKEND_URL}/predict_batch")
+    response = requests.post(f"{BACKEND_URL}/predict_batch", files={'file': file})
     return response.json()
 
 st.title("Backend Interaction")
